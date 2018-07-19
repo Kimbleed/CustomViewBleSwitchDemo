@@ -12,22 +12,20 @@ import android.graphics.PointF;
 import android.graphics.PorterDuff;
 import android.graphics.PorterDuffXfermode;
 import android.graphics.RectF;
-import android.graphics.Xfermode;
 import android.util.AttributeSet;
 import android.util.Log;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.animation.AccelerateDecelerateInterpolator;
-import android.view.animation.DecelerateInterpolator;
-import android.view.animation.OvershootInterpolator;
+import android.view.animation.BounceInterpolator;
 
 /**
  * Created by 49479 on 2018/7/18.
  */
 
-public class YDElasticBallBleSwitch extends View {
+public class YDElasticRoundRectBleSwitch extends View {
 
-    private static final String TAG = YDElasticBallBleSwitch.class.getName();
+    private static final String TAG = YDElasticRoundRectBleSwitch.class.getName();
 
     /**
      * --------------  BallSwitch控件 整体属性 -- 开始
@@ -73,17 +71,17 @@ public class YDElasticBallBleSwitch extends View {
      * --------------  弹性球相关属性 -- 开始
      */
     //弹性球本体
-    ElasticBall mElasticBall;
+    PullBall mPullBall;
 
     Ball mLocateBall;
 
     //弹性球在Canvas中的体现
-    Path mElasticBallPath;
+    Path mPullBallPath;
 
     //弹性球的目的坐标
-    PointF mElasticBallTargetPoint;
+    PointF mPullBallTargetPoint;
 
-    private int mElasticMoveDuration = 800;
+    private int mPullBallMoveDuration = 800;
 
     //弹性球状态
     private int mElasticBallState = ELASTIC_STATE_STATIC;
@@ -91,7 +89,7 @@ public class YDElasticBallBleSwitch extends View {
     public static final int ELASTIC_STATE_CHANGING = 0x0002;
 
     //弹性球半径
-    private int mElasticBallRadius = 200;
+    private int mDragBallRadius = 200;
 
     //弹性球颜色
     private int mElasticBallColor = 0xFFFFFFFF;
@@ -99,7 +97,7 @@ public class YDElasticBallBleSwitch extends View {
     //球属性
     private int mScaleCircleRadius;
     private float mScaleMaxRadius = 300;
-    private float mScaleMinRadius = mElasticBallRadius;
+    private float mScaleMinRadius = mDragBallRadius;
 
     //球缩小放大动画
     private ValueAnimator mAnimScale;
@@ -124,17 +122,18 @@ public class YDElasticBallBleSwitch extends View {
      * --------------  弹性球相关属性 -- 结束
      */
 
-    public YDElasticBallBleSwitch(Context context) {
+    public YDElasticRoundRectBleSwitch(Context context) {
         super(context);
         init();
+
     }
 
-    public YDElasticBallBleSwitch(Context context, AttributeSet attrs) {
+    public YDElasticRoundRectBleSwitch(Context context, AttributeSet attrs) {
         super(context, attrs);
         init();
     }
 
-    public YDElasticBallBleSwitch(Context context, AttributeSet attrs, int defStyleAttr) {
+    public YDElasticRoundRectBleSwitch(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
         init();
     }
@@ -144,6 +143,7 @@ public class YDElasticBallBleSwitch extends View {
         mPaint.setAntiAlias(true);
         mPaint.setColor(mElasticBallColor);
         mPaint.setStrokeCap(Paint.Cap.ROUND);
+        setClickable(true);
     }
 
     @Override
@@ -161,10 +161,26 @@ public class YDElasticBallBleSwitch extends View {
         mCenterPoint = new PointF(mWidth / 2, mHeight / 2);
 
         //初始化 ElasticBall
-        mElasticBall = new ElasticBall(mCenterPoint.x, mCenterPoint.y, mElasticBallRadius);
-        mElasticBallPath = mElasticBall.drawElasticCircle();
+        mPullBall = new PullBall(mCenterPoint.x, mCenterPoint.y, mDragBallRadius);
+        mPullBall.setDuration(mPullBallMoveDuration);
 
-        mLocateBall = new Ball(mCenterPoint.x, mCenterPoint.y, mElasticBallRadius);
+        mLocateBall = new Ball(mCenterPoint.x, mCenterPoint.y, mDragBallRadius);
+
+        mPullBallTargetPoint = new PointF(mWidth - mLocateBall.x, mLocateBall.y);
+        mPullBall.setTarget(mPullBallTargetPoint, new PullBall.DragBallInterface() {
+            @Override
+            public void onChange(Path path) {
+                mElasticBallState = ELASTIC_STATE_CHANGING;
+                mPullBallPath = path;
+                postInvalidate();
+            }
+
+            @Override
+            public void onFinish() {
+
+            }
+        });
+
     }
 
     @Override
@@ -194,47 +210,31 @@ public class YDElasticBallBleSwitch extends View {
         super.onDraw(canvas);
     }
 
+    private float firstX, firstY;
+
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getAction();
         switch (action) {
             case MotionEvent.ACTION_DOWN:
+                firstX = event.getX();
+                firstY = event.getY();
                 if (mBallSwitchState != SWITCH_STATE_CONNECTED || mElasticBallState == ELASTIC_STATE_CHANGING)
                     break;
-                if (Math.abs(mElasticBall.x - mLocateBall.x) < Math.abs(mElasticBall.x - (mWidth - mLocateBall.x))) {
-                    //靠近locateBall
-                    mElasticBallTargetPoint = new PointF(mWidth - mLocateBall.x, mLocateBall.y);
-                } else {
-                    //远离locateBall
-                    mElasticBallTargetPoint = new PointF(mLocateBall.x, mLocateBall.y);
-                }
-                mElasticBall.setDuration(mElasticMoveDuration);
-                mElasticBall.startElasticAnim(mElasticBallTargetPoint, new ElasticBall.ElasticBallInterface() {
-                    @Override
-                    public void onChange(Path path) {
-                        mElasticBallState = ELASTIC_STATE_CHANGING;
-                        mElasticBallPath = path;
-                        postInvalidate();
-                    }
 
-                    @Override
-                    public void onFinish() {
-                        mElasticBallState = ELASTIC_STATE_STATIC;
-                        if (mElasticBall.x > mWidth / 2) {
-                            getExpandInConnectedAnim().start();
-                            postDelayed(new Runnable() {
-                                @Override
-                                public void run() {
-                                    getNarrowInConnectedAnim().start();
-                                }
-                            }, 3000);
-                        }
-                    }
-                });
                 break;
             case MotionEvent.ACTION_MOVE:
+                if (event.getX() > firstX) {
+                    float percent = (event.getX() - firstX) / (mWidth - 2 * mLocateBall.x);
+                    mPullBall.setPercent(percent);
+                }
                 break;
             case MotionEvent.ACTION_UP:
+                if (mPullBall.getPercent() > 0.7) {
+                    mPullBall.startDragAnim(1.0f);
+                } else {
+                    mPullBall.startDragAnim(0.0f);
+                }
                 break;
         }
 
@@ -242,14 +242,16 @@ public class YDElasticBallBleSwitch extends View {
     }
 
     /**
-     * 画弹性球
+     * 画开关本体 PullBall
      *
      * @param canvas
      */
     private void drawElasticBall(Canvas canvas) {
-        mPaint.setStyle(Paint.Style.FILL);
+        mPaint.setStyle(Paint.Style.STROKE);
         mPaint.setColor(mElasticBallColor);
-        canvas.drawPath(mElasticBallPath, mPaint);
+        mPaint.setStrokeWidth(mPullBall.ball.radius * 2);
+        mPaint.setStrokeCap(Paint.Cap.ROUND);
+        canvas.drawPath(mPullBallPath, mPaint);
     }
 
     /**
@@ -400,105 +402,23 @@ public class YDElasticBallBleSwitch extends View {
      *
      * @return
      */
-    private ValueAnimator getElasticBallTranslateAnim(float translateToX) {
-        ValueAnimator anim = ValueAnimator.ofFloat(mElasticBall.x, translateToX);
-        float percent = Math.abs((mElasticBall.x - translateToX) / Math.abs(mWidth / 2.f - mWidth / 3.f));
+    private ValueAnimator getDragBallTranslateAnim(float translateToX) {
+        ValueAnimator anim = ValueAnimator.ofFloat(mPullBall.ball.x, translateToX);
+        float percent = Math.abs((mPullBall.ball.x - translateToX) / Math.abs(mWidth / 2.f - mWidth / 3.f));
         anim.setDuration((int) (scaleDuration * percent));
-        anim.setInterpolator(new OvershootInterpolator());
+        anim.setInterpolator(new BounceInterpolator());
         anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 float value = (float) animation.getAnimatedValue();
-                mElasticBall = new ElasticBall(value, mElasticBall.y, mElasticBall.radius);
-                mElasticBallPath = mElasticBall.drawElasticCircle();
-                if (mElasticBall.x <= mWidth / 2) {
-                    mLocateBall = new Ball(value, mLocateBall.y, mLocateBall.radius);
-                } else {
-                    mLocateBall = new Ball(mWidth - value, mLocateBall.y, mLocateBall.radius);
-                }
+                mPullBall.setXY(value, mPullBall.ball.y);
+                mPullBallPath = mPullBall.drawPath();
+                mLocateBall = new Ball(value, mLocateBall.y, mLocateBall.radius);
                 postInvalidate();
             }
         });
         return anim;
     }
-
-    /**
-     * mPullBall.radius 扩展
-     *
-     * @return
-     */
-    private ValueAnimator getExpandInConnectedAnim() {
-        ValueAnimator anim = ValueAnimator.ofFloat(mElasticBall.radius, mWidth);
-        anim.setDuration(expandDuration);
-        anim.setInterpolator(new DecelerateInterpolator());
-        anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                float value = (float) animation.getAnimatedValue();
-                mElasticBall = new ElasticBall(mElasticBall.x, mElasticBall.y, value);
-                mElasticBallPath = mElasticBall.drawElasticCircle();
-                postInvalidate();
-            }
-        });
-        return anim;
-    }
-
-    /**
-     * mPullBall.radius 扩展
-     *
-     * @return
-     */
-    private ValueAnimator getNarrowInConnectedAnim() {
-        ValueAnimator anim = ValueAnimator.ofFloat(mElasticBall.radius, mElasticBallRadius);
-        anim.setDuration(expandDuration);
-        anim.setInterpolator(new DecelerateInterpolator());
-        anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
-            @Override
-            public void onAnimationUpdate(ValueAnimator animation) {
-                float value = (float) animation.getAnimatedValue();
-                mElasticBall = new ElasticBall(mElasticBall.x, mElasticBall.y, value);
-                mElasticBallPath = mElasticBall.drawElasticCircle();
-                postInvalidate();
-            }
-        });
-        anim.addListener(new Animator.AnimatorListener() {
-            @Override
-            public void onAnimationStart(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationEnd(Animator animation) {
-                mElasticBallTargetPoint = new PointF(mLocateBall.x, mLocateBall.y);
-                mElasticBall .setDuration(mElasticMoveDuration);
-                mElasticBall.startElasticAnim(mElasticBallTargetPoint, new ElasticBall.ElasticBallInterface() {
-                    @Override
-                    public void onChange(Path path) {
-                        mElasticBallState = ELASTIC_STATE_CHANGING;
-                        mElasticBallPath = path;
-                        postInvalidate();
-                    }
-
-                    @Override
-                    public void onFinish() {
-                        mElasticBallState = ELASTIC_STATE_STATIC;
-                    }
-                });
-            }
-
-            @Override
-            public void onAnimationCancel(Animator animation) {
-
-            }
-
-            @Override
-            public void onAnimationRepeat(Animator animation) {
-
-            }
-        });
-        return anim;
-    }
-
 
     /**
      * 绘制 连接中状态
@@ -525,7 +445,7 @@ public class YDElasticBallBleSwitch extends View {
             AnimatorSet animatorSet = new AnimatorSet();
 
             Animator animArc = getArcAnim(359);
-            Animator animTranslate = getElasticBallTranslateAnim(mWidth / 3);
+            Animator animTranslate = getDragBallTranslateAnim(mWidth / 3);
 
             animatorSet.play(animArc).before(animTranslate);
             animatorSet.addListener(new Animator.AnimatorListener() {
@@ -583,7 +503,7 @@ public class YDElasticBallBleSwitch extends View {
     private void drawConnectedToDisconnected(Canvas canvas) {
         if (mAnimTransferSet == null && mBallSwitchDrawState == DRAW_STATE_CONNECTED_TO_DISCONNECTED) {
             AnimatorSet animatorSet = new AnimatorSet();
-            Animator animTranslate = getElasticBallTranslateAnim(mWidth / 2);
+            Animator animTranslate = getDragBallTranslateAnim(mWidth / 2);
             Animator animArc = getArcAnim(0);
             if (mArcDegree > 355) {
                 animatorSet.play(animTranslate).before(animArc);
