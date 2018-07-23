@@ -156,7 +156,7 @@ public class YDBleSwitch extends View {
 
     //动画时间
     private int scaleDuration = 600;
-    private int narrowDuration = 400;
+    private int narrowDuration = 200;
     private int expandDuration = 200;
 
     //动画集
@@ -236,6 +236,7 @@ public class YDBleSwitch extends View {
         setClickable(true);
         mMainIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.icon_lock_locked);
         mMainIconSize = mMainIcon.getWidth() / 2;
+        Log.i(TAG,"main icon size:"+mMainIconSize+"");
 
         mSecondaryIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.icon_lock_open);
         mSecondaryIconSize = mSecondaryIcon.getWidth() / 2;
@@ -280,7 +281,13 @@ public class YDBleSwitch extends View {
             @Override
             public void onFinish(float percent) {
                 //拉动到右边，触发开关
+                Log.d(TAG, "onFinish");
                 if (percent == 1.0f) {
+                    if (mAnimSet != null) {
+                        mAnimSet.cancel();
+                        mAnimSet = null;
+                    }
+                    Log.d(TAG, "draw state = " + YDBleSwitch.this.toString(DRAW_STATE_TO_OPENING));
                     mBallSwitchDrawState = DRAW_STATE_TO_OPENING;
                     postInvalidate();
                 } else {
@@ -908,6 +915,7 @@ public class YDBleSwitch extends View {
      * @param canvas
      */
     private void drawToOpening(Canvas canvas) {
+        Log.d(TAG, "" + (mAnimSet == null));
         if (mAnimSet == null && mBallSwitchDrawState == DRAW_STATE_TO_OPENING) {
             AnimatorSet toOpeningSet = new AnimatorSet();
             Animator animExpand = getExpandForOpenSuccessAnim();
@@ -955,7 +963,7 @@ public class YDBleSwitch extends View {
 
                 @Override
                 public void onAnimationCancel(Animator animation) {
-
+                    mMainIconSize = mMainIcon.getWidth() / 2;
                 }
 
                 @Override
@@ -1066,7 +1074,8 @@ public class YDBleSwitch extends View {
                 || mBallSwitchDrawState == DRAW_STATE_CONNECTED
                 || mBallSwitchDrawState == DRAW_STATE_OPEN_SUCCESS
                 || mBallSwitchDrawState == DRAW_STATE_OPENING
-                || mBallSwitchDrawState == DRAW_STATE_TO_OPENING)
+                || mBallSwitchDrawState == DRAW_STATE_TO_OPENING
+                || mBallSwitchDrawState == DRAW_STATE_CONNECTING)
                 && state == SWITCH_STATE_DISCONNECTED) {
             mBallSwitchGoingState = state;
             mBallSwitchDrawState = DRAW_STATE_CONNECTED_TO_DISCONNECTED;
