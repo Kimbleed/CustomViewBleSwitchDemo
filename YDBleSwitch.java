@@ -100,7 +100,7 @@ public class YDBleSwitch extends View {
         return strState;
     }
 
-    private boolean isOpening = false;
+    private boolean isCancel = false;
 
     //画面状态
     private int mBallSwitchDrawState = DRAW_STATE_CONNECTING;
@@ -117,7 +117,8 @@ public class YDBleSwitch extends View {
     private PointF locatePointArr[] = new PointF[3];
 
     //弹性球本体
-    PullBall mPullBall;
+    PullBall
+            mPullBall;
 
     Ball mLocateBall;
 
@@ -350,7 +351,6 @@ public class YDBleSwitch extends View {
                     mPullBall.setPercent(percent);
                     if (mPullBall.getPercent() > 0.9) {
                         vibrator();
-                        isOpening = true;
                         mPullBall.startDragAnim(1.0f);
                     }
                 }
@@ -443,13 +443,7 @@ public class YDBleSwitch extends View {
         //文字 -- end
 
         // 右图标 -- start
-        //以下画面状态 Container 中的右Icon(mSecondaryIcon)显示
-        if (mBallSwitchDrawState == DRAW_STATE_CONNECTED                            //画面状态：已连接
-                || mBallSwitchDrawState == DRAW_STATE_CONNECTED_TO_DISCONNECTED     //画面状态：已连接 到 断开连接
-                || mBallSwitchDrawState == DRAW_STATE_OPENING                       //画面状态：正在开锁
-                || mBallSwitchDrawState == DRAW_STATE_OPEN_SUCCESS                  //画面状态：开锁成功
-                || mBallSwitchDrawState == DRAW_STATE_TO_OPENING)                   //画面状态：过渡到正在开锁
-        {
+        if (ball.rightX + mPullBallMargin > locatePointArr[2].x + mSecondaryIconSize) {
             RectF rectF = new RectF(locatePointArr[2].x - mSecondaryIconSize, locatePointArr[2].y - mSecondaryIconSize, locatePointArr[2].x + mSecondaryIconSize, locatePointArr[2].y + mSecondaryIconSize);
             canvas.drawBitmap(mSecondaryIcon, null, rectF, mPaintSecond);
         }
@@ -824,15 +818,19 @@ public class YDBleSwitch extends View {
 
                 @Override
                 public void onAnimationEnd(Animator animation) {
-                    mBallSwitchState = SWITCH_STATE_CONNECTED;
-                    mBallSwitchDrawState = DRAW_STATE_CONNECTED;
+                    if (!isCancel) {
+                        mBallSwitchState = SWITCH_STATE_CONNECTED;
+                        mBallSwitchDrawState = DRAW_STATE_CONNECTED;
+                    } else {
+
+                    }
                     mAnimSet = null;
                     postInvalidate();
                 }
 
                 @Override
                 public void onAnimationCancel(Animator animation) {
-
+                    isCancel = true;
                 }
 
                 @Override
@@ -854,10 +852,10 @@ public class YDBleSwitch extends View {
      */
     private void drawConnectedToDisconnected(Canvas canvas) {
         if (mAnimSet == null && mBallSwitchDrawState == DRAW_STATE_CONNECTED_TO_DISCONNECTED) {
-//            if (mPullBall.mCurBall.x != mPullBall.mOriginBall.x) {
-//                mPullBall.startDragAnim(0.0f);
-//                mPullBall.refresh(mPullBall.mOriginBall.x, mPullBall.mOriginBall.y, mPullBallRadius);
-//            }
+            if (mPullBall.mCurBall.x != mPullBall.mOriginBall.x) {
+                mPullBall.startDragAnim(0.0f);
+                mPullBall.refresh(mPullBall.mOriginBall.x, mPullBall.mOriginBall.y, mPullBallRadius);
+            }
             AnimatorSet connectedToDisconnectedSet = new AnimatorSet();
 
             Animator animTranslate = getDragBallTranslateAnim(locatePointArr[1].x);
@@ -1021,6 +1019,7 @@ public class YDBleSwitch extends View {
                 @Override
                 public void onAnimationEnd(Animator animation) {
                     mBallSwitchDrawState = DRAW_STATE_CONNECTED;
+                    mAnimSet = null;
                     if (mOpeningAnim != null)
                         mOpeningAnim.cancel();
                 }
@@ -1063,10 +1062,15 @@ public class YDBleSwitch extends View {
             postInvalidate();
         }
         //从 连接中过渡到已连接  -> 连接断开
-        else if(mBallSwitchDrawState == DRAW_STATE_CONNECTING_TO_CONNECTED && state ==SWITCH_STATE_DISCONNECTED){
+        else if ((mBallSwitchDrawState == DRAW_STATE_CONNECTING_TO_CONNECTED
+                || mBallSwitchDrawState == DRAW_STATE_CONNECTED
+                || mBallSwitchDrawState == DRAW_STATE_OPEN_SUCCESS
+                || mBallSwitchDrawState == DRAW_STATE_OPENING
+                || mBallSwitchDrawState == DRAW_STATE_TO_OPENING)
+                && state == SWITCH_STATE_DISCONNECTED) {
             mBallSwitchGoingState = state;
-            mBallSwitchDrawState = DRAW_STATE_DISCONNECTED;
-            if(mAnimSet!=null){
+            mBallSwitchDrawState = DRAW_STATE_CONNECTED_TO_DISCONNECTED;
+            if (mAnimSet != null) {
                 mAnimSet.cancel();
                 mAnimSet = null;
             }
