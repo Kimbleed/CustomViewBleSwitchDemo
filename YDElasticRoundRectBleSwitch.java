@@ -249,7 +249,7 @@ public class YDElasticRoundRectBleSwitch extends View {
     private void drawElasticBall(Canvas canvas) {
         mPaint.setStyle(Paint.Style.STROKE);
         mPaint.setColor(mElasticBallColor);
-        mPaint.setStrokeWidth(mPullBall.ball.radius * 2);
+        mPaint.setStrokeWidth(mPullBall.mOriginBall.radius * 2);
         mPaint.setStrokeCap(Paint.Cap.ROUND);
         canvas.drawPath(mPullBallPath, mPaint);
     }
@@ -403,15 +403,15 @@ public class YDElasticRoundRectBleSwitch extends View {
      * @return
      */
     private ValueAnimator getDragBallTranslateAnim(float translateToX) {
-        ValueAnimator anim = ValueAnimator.ofFloat(mPullBall.ball.x, translateToX);
-        float percent = Math.abs((mPullBall.ball.x - translateToX) / Math.abs(mWidth / 2.f - mWidth / 3.f));
+        ValueAnimator anim = ValueAnimator.ofFloat(mPullBall.mOriginBall.x, translateToX);
+        float percent = Math.abs((mPullBall.mOriginBall.x - translateToX) / Math.abs(mWidth / 2.f - mWidth / 3.f));
         anim.setDuration((int) (scaleDuration * percent));
         anim.setInterpolator(new BounceInterpolator());
         anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
             public void onAnimationUpdate(ValueAnimator animation) {
                 float value = (float) animation.getAnimatedValue();
-                mPullBall.refresh(value, mPullBall.ball.y,mPullBall.ball.radius);
+                mPullBall.refresh(value, mPullBall.mOriginBall.y,mPullBall.mOriginBall.radius);
                 mPullBallPath = mPullBall.drawPath();
                 mLocateBall = new Ball(value, mLocateBall.y, mLocateBall.radius);
                 postInvalidate();

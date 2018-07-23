@@ -12,7 +12,7 @@ import android.graphics.PointF;
 
 public class PullBall {
 
-    public Ball ball;
+    public Ball mOriginBall;
 
     private Path mDragPath;
 
@@ -33,7 +33,7 @@ public class PullBall {
     }
 
     public PullBall(float x, float y, float radius) {
-        ball = new Ball(x, y, radius);
+        mOriginBall = new Ball(x, y, radius);
         mCurBall = new Ball(x, y, radius / 2);
         mTarget = new PointF(x, y);
     }
@@ -100,14 +100,14 @@ public class PullBall {
 
     public Path drawPath() {
         Path path = new Path();
-        path.moveTo(ball.x, ball.y);
-        path.lineTo(ball.x + percent * (mTarget.x - ball.x), ball.y + percent * (mTarget.y - ball.y));
-        mCurBall.refresh(ball.x + percent * (mTarget.x - ball.x), ball.y + percent * (mTarget.y - ball.y), mCurBall.radius);
+        path.moveTo(mOriginBall.x, mOriginBall.y);
+        path.lineTo(mOriginBall.x + percent * (mTarget.x - mOriginBall.x), mOriginBall.y + percent * (mTarget.y - mOriginBall.y));
+        mCurBall.refresh(mOriginBall.x + percent * (mTarget.x - mOriginBall.x), mOriginBall.y + percent * (mTarget.y - mOriginBall.y), mCurBall.radius);
         return path;
     }
 
     public void refresh(float x, float y, float radius) {
-        ball.refresh(x, y, radius);
+        mOriginBall.refresh(x, y, radius);
     }
 
 }
