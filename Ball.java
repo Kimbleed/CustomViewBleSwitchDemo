@@ -57,6 +57,20 @@ public class Ball {
         this.rightY = rightY;
     }
 
+    public void refresh(float x, float y, float radius){
+        this.x = x;
+        this.y = y;
+        this.radius = radius;
+        this.topX = x;
+        this.topY = y - radius;
+        this.bottomX = x;
+        this.bottomY = y + radius;
+        this.leftX = x - radius;
+        this.leftY = y;
+        this.rightX = x + radius;
+        this.rightY = y;
+    }
+
     /**
      * 球左边点的坐标
      */
