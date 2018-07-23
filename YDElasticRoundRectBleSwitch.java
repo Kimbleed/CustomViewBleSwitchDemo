@@ -166,7 +166,7 @@ public class YDElasticRoundRectBleSwitch extends View {
 
         mLocateBall = new Ball(mCenterPoint.x, mCenterPoint.y, mDragBallRadius);
 
-        mPullBallTargetPoint = new PointF(mWidth - mLocateBall.x, mLocateBall.y);
+        mPullBallTargetPoint = new PointF(mWidth /3*2, mLocateBall.y);
         mPullBall.setTarget(mPullBallTargetPoint, new PullBall.DragBallInterface() {
             @Override
             public void onChange(Path path) {
