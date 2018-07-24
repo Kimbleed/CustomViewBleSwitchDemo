@@ -81,7 +81,7 @@ public class YDElasticRoundRectBleSwitch extends View {
     //弹性球的目的坐标
     PointF mPullBallTargetPoint;
 
-    private int mPullBallMoveDuration = 800;
+    private int mPullBallMoveDuration = 300;
 
     //弹性球状态
     private int mElasticBallState = ELASTIC_STATE_STATIC;
@@ -162,7 +162,7 @@ public class YDElasticRoundRectBleSwitch extends View {
 
         //初始化 ElasticBall
         mPullBall = new PullBall(mCenterPoint.x, mCenterPoint.y, mDragBallRadius);
-        mPullBall.setDuration(mPullBallMoveDuration);
+        mPullBall.setToTargetDuration(mPullBallMoveDuration);
 
         mLocateBall = new Ball(mCenterPoint.x, mCenterPoint.y, mDragBallRadius);
 

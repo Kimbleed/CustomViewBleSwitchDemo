@@ -30,7 +30,7 @@ import com.example.mysmall.newelasticballview.R;
  * Created by 49479 on 2018/7/18.
  */
 
-public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallBleSwitch.OnOpenMotionListener>{
+public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallBleSwitch.OnOpenMotionListener> {
 
     private static final String TAG = YDPullBallBleSwitch.class.getName();
 
@@ -116,9 +116,8 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
     private PointF locatePointArr[] = new PointF[3];
 
-    //弹性球本体
-    PullBall
-            mPullBall;
+    //球条本体
+    PullBall mPullBall;
 
     Ball mLocateBall;
 
@@ -127,8 +126,6 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
     //弹性球的目的坐标
     PointF mPullBallTargetPoint;
-
-    private int mPullBallMoveDuration = 800;
 
     //球条PullBall状态
     private int mPullBallState = PULL_STATE_STATIC;
@@ -155,9 +152,10 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     private float mConnectedRadius = 150;
 
     //动画时间
-    private int scaleDuration = 600;    //缩放动画时间                              画面状态：连接中
-    private int narrowDuration = 400;   //强制归位动画时间  Main图片扩大动画时间    画面状态：连接中 ->已连接   已连接->断开连接
-    private int expandDuration = 200;   //触发开锁动作动画时间                      画面状态：已连接 ->正在开锁
+    private int scaleDuration = 600;            //缩放动画时间                              画面状态：连接中
+    private int narrowDuration = 400;           //强制归位动画时间  Main图片扩大动画时间 Container颜色变化动画时间    画面状态：连接中 ->已连接   已连接->断开连接
+    private int expandDuration = 200;           //触发开锁动作动画时间                      画面状态：已连接 ->正在开锁
+    private int mPullBallMoveDuration = 400;    //PullBall 动画完成时间                     画面状态： 已连接  已连接 ->正在开锁 开锁中 开锁成功
 
     //动画集
     private AnimatorSet mAnimSet;
@@ -178,7 +176,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
     private String TXT_CONNECTING = "寻找门锁中...";
     private String TXT_OPENING = "开锁中";
-    private String TXT_OPEN_SUCCESS ="开锁成功";
+    private String TXT_OPEN_SUCCESS = "开锁成功";
     private String TXT_DRAG_OPEN = "右滑开锁";
     private String TXT_DISCONNECTED = "未找到门锁";
 
@@ -273,7 +271,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
         //初始化 ElasticBall
         mPullBall = new PullBall(locatePointArr[1].x, locatePointArr[1].y, mPullBallRadius);
-        mPullBall.setDuration(mPullBallMoveDuration);
+        mPullBall.setToTargetDuration(mPullBallMoveDuration);
 
         mLocateBall = new Ball(locatePointArr[1].x, locatePointArr[1].y, mPullBallRadius);
 
@@ -349,11 +347,12 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     }
 
     private float firstX, firstY;
+    private boolean isValid = false;
 
     @Override
     public boolean onTouchEvent(MotionEvent event) {
         int action = event.getAction();
-        if (mPullBall.getPercent() > 0.9f) {
+        if (mBallSwitchDrawState != DRAW_STATE_CONNECTED) {
             return super.onTouchEvent(event);
         }
         switch (action) {
@@ -362,13 +361,16 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
                 firstY = event.getY();
                 if (mBallSwitchState != SWITCH_STATE_CONNECTED || mPullBallState == PULL_STATE_EXPAND)
                     break;
-
+                if (firstX >= locatePointArr[0].x - mPullBallRadius && firstX <= locatePointArr[0].x + mPullBallRadius) {
+                    isValid = true;
+                }
                 break;
             case MotionEvent.ACTION_MOVE:
-                if (event.getX() > firstX) {
+                if (isValid && event.getX() > firstX) {
                     float percent = (event.getX() - firstX) / (locatePointArr[2].x - locatePointArr[0].x);
                     mPullBall.setPercent(percent);
                     if (mPullBall.getPercent() > 0.9) {
+                        isValid = false;
                         vibrator();
                         mPullBall.startDragAnim(1.0f);
                     }
@@ -380,6 +382,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
                 } else {
                     mPullBall.startDragAnim(0.0f);
                 }
+                isValid = false;
                 break;
         }
 
@@ -401,7 +404,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
 
         //PullBall.mCurBall 上的 文字 与 图标
-        RectF rectf  = new RectF((int) mPullBall.mCurBall.x - mMainIconSize, mMainIconY - mMainIconSize, mPullBall.mCurBall.x + mMainIconSize, mMainIconY + mMainIconSize);
+        RectF rectf = new RectF((int) mPullBall.mCurBall.x - mMainIconSize, mMainIconY - mMainIconSize, mPullBall.mCurBall.x + mMainIconSize, mMainIconY + mMainIconSize);
         // 以下情况PullBall 中没有文字，mIcon居中
         if (mBallSwitchDrawState == DRAW_STATE_CONNECTING_TO_CONNECTED          //画面状态：连接中 到 已连接
                 || mBallSwitchDrawState == DRAW_STATE_CONNECTED                 //画面状态：已连接
@@ -413,10 +416,10 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
         }
         //其余画面状态有文字
-        else if(mBallSwitchDrawState == DRAW_STATE_DISCONNECTED){
+        else if (mBallSwitchDrawState == DRAW_STATE_DISCONNECTED) {
             CanvasUtils.initPaintForTxt(mPaintSecond, mPullBallTxtColorInCurBall, 255, mPullBallTxtSizeInCurBall);
             CanvasUtils.drawText(canvas, mPaintSecond, TXT_DISCONNECTED, mPullBall.mOriginBall.x, mPullBall.mCurBall.y + mPullBallTxtSizeInCurBall + mMainIconSize);
-        }else if(mBallSwitchDrawState == DRAW_STATE_CONNECTING){
+        } else if (mBallSwitchDrawState == DRAW_STATE_CONNECTING) {
             CanvasUtils.initPaintForTxt(mPaintSecond, mPullBallTxtColorInCurBall, 255, mPullBallTxtSizeInCurBall);
             CanvasUtils.drawText(canvas, mPaintSecond, TXT_CONNECTING, mPullBall.mOriginBall.x, mPullBall.mCurBall.y + mPullBallTxtSizeInCurBall + mMainIconSize);
         }
@@ -428,8 +431,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
         if (mBallSwitchDrawState == DRAW_STATE_OPENING) {
             CanvasUtils.initPaintForTxt(mPaintSecond, mPullBallTxtColorInCenter, 255, mPullBallTxtSizeInCenter);
             CanvasUtils.drawText(canvas, mPaintSecond, TXT_OPENING, locatePointArr[1].x, locatePointArr[1].y);
-        }
-        else if(mBallSwitchDrawState == DRAW_STATE_OPEN_SUCCESS && mPullBall.mCurBall.x == locatePointArr[2].x){
+        } else if (mBallSwitchDrawState == DRAW_STATE_OPEN_SUCCESS && mPullBall.mCurBall.x == locatePointArr[2].x) {
             CanvasUtils.initPaintForTxt(mPaintSecond, mPullBallTxtColorInCenter, 255, mPullBallTxtSizeInCenter);
             CanvasUtils.drawText(canvas, mPaintSecond, TXT_OPEN_SUCCESS, locatePointArr[1].x, locatePointArr[1].y);
         }
@@ -492,7 +494,8 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
         mPaint.setColor(Color.parseColor("#FF96ebd3"));
         mPaint.setStrokeWidth(0);
         mPaint.setStyle(Paint.Style.FILL);
-        canvas.drawCircle(locatePointArr[2].x, locatePointArr[2].y + 20, mOpeningCircleRadius, mPaint);
+        float y = locatePointArr[2].y - mSecondaryIconSize + mSecondaryIconSize * 2 * 78 / 128;
+        canvas.drawCircle(locatePointArr[2].x, y, mOpeningCircleRadius, mPaint);
     }
 
 
@@ -517,7 +520,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
         canvas.restoreToCount(sc);
     }
 
-    public void startAnimSet(AnimatorSet set){
+    public void startAnimSet(AnimatorSet set) {
         isCancel = false;
         mAnimSet = set;
         mAnimSet.start();
@@ -643,7 +646,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
      */
     private ValueAnimator getContainerColorAnim(int toColor) {
         final ValueAnimator anim = ValueAnimator.ofInt(mContainerColor, toColor);
-        anim.setDuration(scaleDuration);
+        anim.setDuration(narrowDuration);
         anim.setInterpolator(new DecelerateInterpolator());
         anim.setEvaluator(new ArgbEvaluator());
         anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -657,8 +660,8 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
         anim.addListener(new Animator.AnimatorListener() {
             @Override
             public void onAnimationStart(Animator animation) {
-                if (mBallSwitchDrawState == DRAW_STATE_CONNECTING_TO_CONNECTED)
-                    mBallSwitchDrawState = DRAW_STATE_CONNECTED;
+//                if (mBallSwitchDrawState == DRAW_STATE_CONNECTING_TO_CONNECTED)
+//                    mBallSwitchDrawState = DRAW_STATE_CONNECTED;
             }
 
             @Override
@@ -820,7 +823,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     private void drawConnecting(Canvas canvas) {
         mPaint.setStyle(Paint.Style.FILL);
         if (mAnimSet == null && mBallSwitchDrawState == DRAW_STATE_CONNECTING) {
-            Log.i(TAG,"animSet :connecting");
+            Log.i(TAG, "animSet :connecting");
             AnimatorSet connectingSet = new AnimatorSet();
             connectingSet.play(getScaleRepeatAnim());
             startAnimSet(connectingSet);
@@ -836,7 +839,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
      */
     private void drawConnectingToConnected(Canvas canvas) {
         if (mAnimSet == null && mBallSwitchDrawState == DRAW_STATE_CONNECTING_TO_CONNECTED) {
-            Log.i(TAG,"animSet :connectingToConnected");
+            Log.i(TAG, "animSet :connectingToConnected");
             AnimatorSet connectingToConnectedSet = new AnimatorSet();
 
 //            Animator animForce = getScaleOneTimeAnim(mScaleMinRadius);
@@ -892,7 +895,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
      */
     private void drawConnectedToDisconnected(Canvas canvas) {
         if (mAnimSet == null && mBallSwitchDrawState == DRAW_STATE_CONNECTED_TO_DISCONNECTED) {
-            Log.i(TAG,"animSet :connectedToDisconnected");
+            Log.i(TAG, "animSet :connectedToDisconnected");
             mMainIconSize = mMainIconDefaultSize;
             if (mPullBall.mCurBall.x != mPullBall.mOriginBall.x) {
                 mPullBall.startDragAnim(0.0f);
@@ -951,7 +954,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     private void drawConnectedToOpening(Canvas canvas) {
         Log.d(TAG, "" + (mAnimSet == null));
         if (mAnimSet == null && mBallSwitchDrawState == DRAW_STATE_CONNECTED_TO_OPENING) {
-            Log.i(TAG,"animSet :connectedToOpening");
+            Log.i(TAG, "animSet :connectedToOpening");
             AnimatorSet toOpeningSet = new AnimatorSet();
             Animator animExpand = getExpandForOpenTriggerAnim();
             Animator animIconScale = getMainIconScaleAnim();
@@ -966,7 +969,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
                 @Override
                 public void onAnimationEnd(Animator animation) {
-                    if(!isCancel)
+                    if (!isCancel)
                         mBallSwitchDrawState = DRAW_STATE_OPENING;
                 }
 
@@ -1026,14 +1029,14 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
     public void drawOpenSuccess(Canvas canvas) {
         if (mAnimSet == null && mBallSwitchDrawState == DRAW_STATE_OPEN_SUCCESS) {
-            Log.i(TAG,"animSet :openSuccess");
+            Log.i(TAG, "animSet :openSuccess");
             AnimatorSet openSuccessSet = new AnimatorSet();
 
             // 1.开锁中图标消失
             // 2.开锁成功图标出现
             // 3.开锁成功图标消失 & 开始收缩
             // 4.蓝牙图标出现
-            Animator animIconAlphaDisappear1 = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_lock_open, true);
+            Animator animIconAlphaDisappear1 = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_lock_locked, true);
             Animator animIconAlphaAppear1 = getMainIconAlphaAnim(0x00, 0xff, -1, true);
 
             Animator animIconAlphaDisappear2 = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_ble, true);
@@ -1104,9 +1107,8 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     /**
      * 设置BallSwitch 状态
      */
-    private void setSwitchState(int state) {
+    private boolean setSwitchState(int state) {
         //从连接中  ->  已连接
-        Log.i(TAG, "setSwitchState - start || mBallSwitch:" + toString(mBallSwitchState) + "   mBallSwitchGoing:" + toString(mBallSwitchGoingState) + "   state:" + toString(state));
         if (mBallSwitchDrawState == DRAW_STATE_CONNECTING && state == SWITCH_STATE_CONNECTED) {
 
             mBallSwitchGoingState = state;
@@ -1117,6 +1119,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
                 mAnimSet = null;
             }
             postInvalidate();
+            return true;
         }
         //从 连接中过渡到已连接  -> 连接断开
         else if ((mBallSwitchDrawState == DRAW_STATE_CONNECTING_TO_CONNECTED
@@ -1126,13 +1129,17 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
                 || mBallSwitchDrawState == DRAW_STATE_CONNECTED_TO_OPENING
                 || mBallSwitchDrawState == DRAW_STATE_CONNECTING)
                 && state == SWITCH_STATE_DISCONNECTED) {
+
             mBallSwitchGoingState = state;
             mBallSwitchDrawState = DRAW_STATE_CONNECTED_TO_DISCONNECTED;
+
             if (mAnimSet != null) {
                 mAnimSet.cancel();
                 mAnimSet = null;
             }
             postInvalidate();
+
+            return true;
         }
         //从已连接  -> 连接断开
         else if (mBallSwitchDrawState == DRAW_STATE_CONNECTED && state == SWITCH_STATE_DISCONNECTED) {
@@ -1151,6 +1158,8 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
             postInvalidate();
 
+            return true;
+
         }
         //从连接断开 ->  连接中
         else if (mBallSwitchDrawState == DRAW_STATE_DISCONNECTED && state == SWITCH_STATE_CONNECTING) {
@@ -1158,6 +1167,8 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
             mBallSwitchGoingState = state;
             mBallSwitchDrawState = DRAW_STATE_CONNECTING;
             postInvalidate();
+
+            return true;
         }
         //从 连接中 -> 连接顿单开
         else if (mBallSwitchDrawState == DRAW_STATE_CONNECTING && state == SWITCH_STATE_DISCONNECTED) {
@@ -1172,14 +1183,19 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
             postInvalidate();
 
+            return true;
+
         } else if (mBallSwitchDrawState == DRAW_STATE_OPENING && state == SWITCH_STATE_OPEN) {
             mBallSwitchGoingState = state;
             mBallSwitchDrawState = DRAW_STATE_OPEN_SUCCESS;
             postInvalidate();
+
+            return true;
         }
-        Log.i(TAG, "setSwitchState - end || mBallSwitch:" + toString(mBallSwitchState) + "   mBallSwitchGoing:" + toString(mBallSwitchGoingState) + "   state:" + toString(state));
+        return false;
     }
 
+    //interface  YDBleSwitch  实现
     public void connecting() {
         setSwitchState(SWITCH_STATE_CONNECTING);
     }

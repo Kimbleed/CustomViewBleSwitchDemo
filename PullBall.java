@@ -16,7 +16,7 @@ public class PullBall {
 
     private Path mDragPath;
 
-    private int duration = 800;
+    private int toTargetDuration = 100;
 
     private PointF mTarget;
 
@@ -38,14 +38,14 @@ public class PullBall {
         mTarget = new PointF(x, y);
     }
 
-    public void setDuration(int duration) {
-        this.duration = duration;
+    public void setToTargetDuration(int toTargetDuration) {
+        this.toTargetDuration = toTargetDuration;
     }
 
     public void startDragAnim(final float TargetPercent) {
 
         ValueAnimator animator = ValueAnimator.ofFloat(percent, TargetPercent);
-        animator.setDuration((int) (Math.abs(TargetPercent - percent) * duration));
+        animator.setDuration((int) (Math.abs(TargetPercent - percent) * toTargetDuration));
 
         animator.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
             @Override
