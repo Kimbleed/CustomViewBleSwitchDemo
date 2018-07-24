@@ -9,5 +9,6 @@ public interface YDBleSwitch<T> {
     boolean connected();
     boolean disconnected();
     boolean openSuccess();
+    void showMsg(String content);
     void setOpenMotionListener(T listener);
 }
