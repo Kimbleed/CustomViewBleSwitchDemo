@@ -156,6 +156,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     private int narrowDuration = 400;           //强制归位动画时间  Main图片扩大动画时间 Container颜色变化动画时间    画面状态：连接中 ->已连接   已连接->断开连接
     private int expandDuration = 200;           //触发开锁动作动画时间                      画面状态：已连接 ->正在开锁
     private int mPullBallMoveDuration = 400;    //PullBall 动画完成时间                     画面状态： 已连接  已连接 ->正在开锁 开锁中 开锁成功
+    private int openDuration = 2000;
 
     //动画集
     private AnimatorSet mAnimSet;
@@ -172,6 +173,10 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     private int mSecondaryIconSize = -1;
     private int mSecondaryIconAlpha = 0xff;
     private float mSecondaryIconY;
+
+    //辅助图标
+    private Bitmap mAssistIcon;
+    private int mAssistIconSize = -1;
 
 
     private String TXT_CONNECTING = "寻找门锁中...";
@@ -203,6 +208,9 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     private static final int mOpeningMaxRadius = 20;
     private static final int mOpeningMinRadius = 0;
     private int mOpeningCircleRadius = mOpeningMinRadius;
+
+    //开锁成功 的 圆  (造出 锁开 动画)
+    private int mOpenSuccessRectHeight = 0;
 
     //闪点动画(超难察觉动画)
     private ValueAnimator mOpeningAnim;
@@ -239,13 +247,16 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
         mPaintSecond.setAntiAlias(true);
 
         setClickable(true);
-        mMainIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.icon_lock_locked);
+        mMainIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.icon_locked_green);
         mMainIconSize = mMainIcon.getWidth() / 2;
         mMainIconDefaultSize = mMainIconSize;
         Log.i(TAG, "main icon size:" + mMainIconSize + "");
 
-        mSecondaryIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.icon_lock_open);
+        mSecondaryIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.icon_locked_white);
         mSecondaryIconSize = mSecondaryIcon.getWidth() / 2;
+
+        mAssistIcon = BitmapFactory.decodeResource(getResources(), R.mipmap.icon_locked_green_assit);
+        mAssistIconSize = mAssistIcon.getWidth() / 2;
     }
 
     @Override
@@ -423,9 +434,19 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
             CanvasUtils.initPaintForTxt(mPaintSecond, mPullBallTxtColorInCurBall, 255, mPullBallTxtSizeInCurBall);
             CanvasUtils.drawText(canvas, mPaintSecond, TXT_CONNECTING, mPullBall.mOriginBall.x, mPullBall.mCurBall.y + mPullBallTxtSizeInCurBall + mMainIconSize);
         }
-        mPaint.setAlpha(mMainIconAlpha);
-        canvas.drawBitmap(mMainIcon, null, rectf, mPaint);
-        mPaint.setAlpha(0xff);
+        mPaintSecond.setAlpha(mMainIconAlpha);
+        canvas.drawBitmap(mMainIcon, null, rectf, mPaintSecond);
+        mPaintSecond.setAlpha(0xff);
+
+        if (mBallSwitchDrawState == DRAW_STATE_OPEN_SUCCESS && mPullBall.mCurBall.x == locatePointArr[2].x) {
+            mPaintSecond.setColor(Color.WHITE);
+            canvas.drawRect(mPullBall.mCurBall.x, mHeight / 2 - mOpenSuccessRectHeight, mPullBall.mCurBall.x + mMainIconSize, mHeight / 2, mPaintSecond);
+//            canvas.drawCircle(mPullBall.mCurBall.x + mMainIconSize, mHeight / 2, mOpenSuccessRectHeight, mPaintSecond);
+            mPaintSecond.setAlpha(mMainIconAlpha);
+            canvas.drawBitmap(mAssistIcon, null, rectf, mPaintSecond);
+            mPaintSecond.setColor(Color.WHITE);
+            mPaintSecond.setAlpha(0xff);
+        }
 
         //PullBall 中间的 文字
         if (mBallSwitchDrawState == DRAW_STATE_OPENING) {
@@ -524,6 +545,33 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
         isCancel = false;
         mAnimSet = set;
         mAnimSet.start();
+    }
+
+    /**
+     * 圆扩大 动画
+     *
+     * @return
+     */
+    private ValueAnimator getOpenLockCircleAnim() {
+        ValueAnimator anim = ValueAnimator.ofInt(0, 50);
+        anim.setDuration(openDuration);
+        anim.setInterpolator(new AccelerateDecelerateInterpolator());
+        anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
+            @Override
+            public void onAnimationUpdate(ValueAnimator animation) {
+                int value = (int) animation.getAnimatedValue();
+                mOpenSuccessRectHeight = value;
+                postInvalidate();
+            }
+        });
+        return anim;
+    }
+
+    private ValueAnimator getWaitTimeAnim() {
+        ValueAnimator anim = ValueAnimator.ofInt(0, 50);
+        anim.setDuration(3000);
+        anim.setInterpolator(new AccelerateDecelerateInterpolator());
+        return anim;
     }
 
     /**
@@ -796,12 +844,12 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     }
 
     /**
-     * 动画：主Icon 放大 in OpenSuccess
+     * 动画：主Icon 缩小/放大 in OpenSuccess
      *
      * @return
      */
-    private ValueAnimator getMainIconScaleAnim() {
-        ValueAnimator anim = ValueAnimator.ofInt(0, mMainIconSize + 20, mMainIconSize);
+    private ValueAnimator getMainIconScaleAnim(int... args) {
+        ValueAnimator anim = ValueAnimator.ofInt(args);
         anim.setDuration(scaleDuration);
         anim.setInterpolator(new DecelerateInterpolator());
         anim.addUpdateListener(new ValueAnimator.AnimatorUpdateListener() {
@@ -906,7 +954,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
             Animator animTranslate = getDragBallTranslateAnim(locatePointArr[1].x);
             Animator animColor = getContainerColorAnim(mEnableColor);
             Animator animScale = getScaleOneTimeAnim(mScaleMinRadius);
-            Animator animIconAlphaDisappear = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_lock_locked, false);
+            Animator animIconAlphaDisappear = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_locked_green, false);
             Animator animIconAlphaAppear = getMainIconAlphaAnim(0x00, 0xff, -1, false);
 
             // animColor & animIconAlphaDisappear-> animScale & animTranslate & animIconAlphaAppear
@@ -957,8 +1005,8 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
             Log.i(TAG, "animSet :connectedToOpening");
             AnimatorSet toOpeningSet = new AnimatorSet();
             Animator animExpand = getExpandForOpenTriggerAnim();
-            Animator animIconScale = getMainIconScaleAnim();
-            Animator animIconAlphaDisappear = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_lock_locked, true);
+            Animator animIconScale = getMainIconScaleAnim(0, mMainIconSize + 20, mMainIconSize);
+            Animator animIconAlphaDisappear = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_locked_green, true);
             Animator animIconAlphaAppear = getMainIconAlphaAnim(0x00, 0xff, -1, true);
             animIconAlphaDisappear.addListener(new Animator.AnimatorListener() {
                 @Override
@@ -1032,32 +1080,37 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
             Log.i(TAG, "animSet :openSuccess");
             AnimatorSet openSuccessSet = new AnimatorSet();
 
-            // 1.开锁中图标消失
-            // 2.开锁成功图标出现
-            // 3.开锁成功图标消失 & 开始收缩
-            // 4.蓝牙图标出现
-            Animator animIconAlphaDisappear1 = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_lock_locked, true);
-            Animator animIconAlphaAppear1 = getMainIconAlphaAnim(0x00, 0xff, -1, true);
+            // 1.开锁中图标缩小
+            // 2.开锁中图标 动画 渐变 成 开锁成功图标
+            // 3.等待3秒
+            // 4.开锁成功图标消失
+            // 5.PullBall 开始收缩
+            // 6.蓝牙图标出现
 
+            Animator animIconSmall = getMainIconScaleAnim(mMainIconSize, mMainIconSize - 20);
+            Animator animOpenLockCircle = getOpenLockCircleAnim();
+            Animator animWaitTime = getWaitTimeAnim();
             Animator animIconAlphaDisappear2 = getMainIconAlphaAnim(0xff, 0x00, R.mipmap.icon_ble, true);
             Animator animIconAlphaAppear2 = getMainIconAlphaAnim(0x00, 0xff, -1, true);
             Animator animNarrow = getPullBallNarrowForceAnim();
 
-            // animIconAlphaDisappear1 -> animIconAlphaAppear1 -> animIconAlphaDisappear2 && animNarrow -> animIconAlphaAppear2
-            openSuccessSet.play(animIconAlphaDisappear1).before(animIconAlphaAppear1);
-            openSuccessSet.play(animIconAlphaAppear1).before(animIconAlphaDisappear2);
-            openSuccessSet.play(animIconAlphaDisappear2).with(animNarrow);
-            openSuccessSet.play(animIconAlphaAppear2).after(animIconAlphaDisappear2);
+            openSuccessSet.play(animIconSmall).with(animOpenLockCircle);
+            openSuccessSet.play(animOpenLockCircle).before(animWaitTime);
+            openSuccessSet.play(animWaitTime).before(animIconAlphaDisappear2);
+            openSuccessSet.play(animIconAlphaDisappear2).before(animNarrow);
+            openSuccessSet.play(animNarrow).before(animIconAlphaAppear2);
 
             animIconAlphaDisappear2.addListener(new Animator.AnimatorListener() {
                 @Override
                 public void onAnimationStart(Animator animation) {
-                    mPullBall.startDragAnim(0.0f);
+
                 }
 
                 @Override
                 public void onAnimationEnd(Animator animation) {
-
+                    mPullBall.startDragAnim(0.0f);
+                    mMainIconSize = mMainIconDefaultSize;
+                    mOpenSuccessRectHeight = 0;
                 }
 
                 @Override
@@ -1079,15 +1132,17 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
                 @Override
                 public void onAnimationEnd(Animator animation) {
-                    mBallSwitchDrawState = DRAW_STATE_CONNECTED;
-                    mAnimSet = null;
+                    if(!isCancel) {
+                        mBallSwitchDrawState = DRAW_STATE_CONNECTED;
+                        mAnimSet = null;
+                    }
                     if (mOpeningAnim != null)
                         mOpeningAnim.cancel();
                 }
 
                 @Override
                 public void onAnimationCancel(Animator animation) {
-
+                    isCancel = true;
                 }
 
                 @Override
@@ -1170,7 +1225,7 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
             return true;
         }
-        //从 连接中 -> 连接顿单开
+        //从 连接中 -> 连接断开
         else if (mBallSwitchDrawState == DRAW_STATE_CONNECTING && state == SWITCH_STATE_DISCONNECTED) {
 
             mBallSwitchGoingState = state;
@@ -1185,7 +1240,9 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
 
             return true;
 
-        } else if (mBallSwitchDrawState == DRAW_STATE_OPENING && state == SWITCH_STATE_OPEN) {
+        }
+        // to开锁中/开锁中 -> 开锁成功
+        else if ((mBallSwitchDrawState == DRAW_STATE_OPENING || mBallSwitchDrawState == DRAW_STATE_CONNECTED_TO_OPENING) && state == SWITCH_STATE_OPEN) {
             mBallSwitchGoingState = state;
             mBallSwitchDrawState = DRAW_STATE_OPEN_SUCCESS;
             postInvalidate();
@@ -1196,26 +1253,26 @@ public class YDPullBallBleSwitch extends View implements YDBleSwitch<YDPullBallB
     }
 
     //interface  YDBleSwitch  实现
-    public void connecting() {
-        setSwitchState(SWITCH_STATE_CONNECTING);
+    public boolean connecting() {
+        return setSwitchState(SWITCH_STATE_CONNECTING);
     }
 
     ;
 
-    public void connected() {
-        setSwitchState(SWITCH_STATE_CONNECTED);
+    public boolean connected() {
+        return setSwitchState(SWITCH_STATE_CONNECTED);
     }
 
     ;
 
-    public void disconnected() {
-        setSwitchState(SWITCH_STATE_DISCONNECTED);
+    public boolean disconnected() {
+        return setSwitchState(SWITCH_STATE_DISCONNECTED);
     }
 
     ;
 
-    public void openSuccess() {
-        setSwitchState(SWITCH_STATE_OPEN);
+    public boolean openSuccess() {
+        return setSwitchState(SWITCH_STATE_OPEN);
     }
 
     ;

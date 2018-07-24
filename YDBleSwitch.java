@@ -5,9 +5,9 @@ package com.example.mysmall.newelasticballview.elastic;
  */
 
 public interface YDBleSwitch<T> {
-    void connecting();
-    void connected();
-    void disconnected();
-    void openSuccess();
+    boolean connecting();
+    boolean connected();
+    boolean disconnected();
+    boolean openSuccess();
     void setOpenMotionListener(T listener);
 }
